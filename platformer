@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>How Long Can You Live</title>
+<style>
+html,body{margin:0;overflow:hidden;background:black;color:white;font-family:Arial;height:100%;width:100%;}
+#timer{position:fixed;top:10px;left:10px;font-size:20px;color:yellow}
+#player{position:absolute;width:15px;height:15px;background:red;border-radius:50%;display:none}
+.enemy{position:absolute;width:20px;height:20px;background:white}
+#startScreen, #gameOverScreen{position:fixed;top:0;left:0;width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;flex-direction:column;color:white;font-size:30px;}
+#gameOverScreen{display:none}
+button{font-size:24px;padding:10px 20px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="timer">0 ms</div>
+<div id="player"></div>
+<div id="startScreen">
+  <div>How Long Can You Live?</div>
+  <button id="startButton">Start</button>
+</div>
+<div id="gameOverScreen">
+  <div id="finalTime"></div>
+  <div>Press SPACE to Restart</div>
+</div>
+<script>
+const player=document.getElementById("player");
+const timerEl=document.getElementById("timer");
+const startScreen=document.getElementById("startScreen");
+const startButton=document.getElementById("startButton");
+const gameOverScreen=document.getElementById("gameOverScreen");
+const finalTime=document.getElementById("finalTime");
+
+let x=window.innerWidth/2;
+let y=window.innerHeight/2;
+const speed=5;
+let keys={};
+let enemies=[];
+let startTime=0;
+let gameOver=false;
+let spawnInterval;
+
+function spawnEnemy(){
+let e=document.createElement("div");
+e.className="enemy";
+let side=Math.floor(Math.random()*4);
+let ex,ey,vx,vy;
+if(side===0){ex=-20;ey=Math.random()*innerHeight;vx=2+Math.random()*3;vy=0}
+if(side===1){ex=innerWidth+20;ey=Math.random()*innerHeight;vx=-(2+Math.random()*3);vy=0}
+if(side===2){ex=Math.random()*innerWidth;ey=-20;vx=0;vy=2+Math.random()*3}
+if(side===3){ex=Math.random()*innerWidth;ey=innerHeight+20;vx=0;vy=-(2+Math.random()*3)}
+
+e.style.left=ex+"px";
+e.style.top=ey+"px";
+document.body.appendChild(e);
+enemies.push({el:e,x:ex,y:ey,vx,vy});
+}
+
+function startGame(){
+startScreen.style.display="none";
+player.style.display="block";
+player.style.left=x+"px";
+player.style.top=y+"px";
+startTime=performance.now();
+gameOver=false;
+enemies.forEach(e=>e.el.remove());
+enemies=[];
+spawnEnemy();
+spawnInterval=setInterval(spawnEnemy,60000);
+update();
+}
+
+function endGame(){
+gameOver=true;
+clearInterval(spawnInterval);
+finalTime.textContent=`Hier is je overleefde tijd: ${timerEl.textContent}`;
+gameOverScreen.style.display="flex";
+}
+
+addEventListener("keydown", e=>{
+keys[e.key.toLowerCase()]=true;
+if(gameOver && e.code==="Space"){
+  gameOverScreen.style.display="none";
+x=window.innerWidth/2;
+y=window.innerHeight/2;
+startGame();
+}
+});
+addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
+startButton.addEventListener("click", startGame);
+
+function update(){
+if(gameOver) return;
+if(keys["arrowleft"]||keys["a"])x-=speed;
+if(keys["arrowright"]||keys["d"])x+=speed;
+if(keys["arrowup"]||keys["w"])y-=speed;
+if(keys["arrowdown"]||keys["s"])y+=speed;
+x=Math.max(0,Math.min(innerWidth-15,x));
+y=Math.max(0,Math.min(innerHeight-15,y));
+player.style.left=x+"px";
+player.style.top=y+"px";
+
+for(let i=enemies.length-1;i>=0;i--){
+let e=enemies[i];
+e.x+=e.vx;
+e.y+=e.vy;
+if(e.x<-40||e.x>innerWidth+40||e.y<-40||e.y>innerHeight+40){
+e.el.remove();
+enemies.splice(i,1);
+spawnEnemy();
+continue;
+}
+e.el.style.left=e.x+"px";
+e.el.style.top=e.y+"px";
+if(x<e.x+20&&x+15>e.x&&y<e.y+20&&y+15>e.y){endGame();}
+}
+let t=performance.now()-startTime;
+let ms=Math.floor(t%1000);
+let s=Math.floor(t/1000)%60;
+let m=Math.floor(t/60000)%60;
+let h=Math.floor(t/3600000);
+timerEl.textContent=`${h}h ${m}m ${s}s ${ms}ms`;
+requestAnimationFrame(update);
+}
+</script>
+</body>
+</html>
