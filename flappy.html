@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Flappy Bird Shop</title>
+
+<style>
+body{
+ margin:0;
+ background:#70c5ce;
+ font-family:Arial;
+}
+
+canvas{
+ display:block;
+ margin:auto;
+ background:#70c5ce;
+}
+</style>
+
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let bird;
+let pipes;
+let frame;
+let score;
+let running=true;
+let shop=false;
+let ghost=false;
+
+let currentColor="grey";
+
+let colors=[
+ {name:"red",price:5},
+ {name:"orange",price:10},
+ {name:"yellow",price:15},
+ {name:"green",price:20},
+ {name:"blue",price:25},
+ {name:"purple",price:30},
+ {name:"rainbow",price:35}
+];
+
+let owned={ grey:true };
+
+function resetGame(){
+
+ bird={
+  x:80,
+  y:200,
+  velocity:0,
+  gravity:0.6,
+  lift:-10
+ };
+
+ pipes=[];
+ frame=0;
+ score=0;
+ running=true;
+
+}
+
+resetGame();
+
+document.addEventListener("keydown",e=>{
+
+ if(e.code==="Space" && running && !shop){
+  bird.velocity=bird.lift;
+ }
+
+ if(e.code==="KeyW"){
+  ghost=true;
+ }
+
+ if(e.code==="KeyR"){
+  resetGame();
+ }
+
+ if(e.code==="KeyS"){
+  shop=!shop;
+ }
+
+ if(shop){
+
+  if(e.key>="1" && e.key<="7"){
+
+   let item=colors[e.key-1];
+
+   if(!owned[item.name] && score>=item.price){
+
+    score-=item.price;
+    owned[item.name]=true;
+    currentColor=item.name;
+
+   }
+   else if(owned[item.name]){
+
+    currentColor=item.name;
+
+   }
+
+  }
+
+ }
+
+});
+
+document.addEventListener("keyup",e=>{
+
+ if(e.code==="KeyW"){
+  ghost=false;
+ }
+
+});
+
+function drawBird(){
+
+ if(currentColor==="rainbow"){
+
+  let rainbow=["red","orange","yellow","green","blue","purple"];
+  ctx.fillStyle=rainbow[Math.floor(frame/10)%rainbow.length];
+
+ }else{
+
+  ctx.fillStyle=currentColor;
+
+ }
+
+ ctx.beginPath();
+ ctx.arc(bird.x,bird.y,15,0,Math.PI*2);
+ ctx.fill();
+
+}
+
+function updateBird(){
+
+ if(!running || shop) return;
+
+ bird.velocity+=bird.gravity;
+ bird.y+=bird.velocity;
+
+ if(bird.y>canvas.height || bird.y<0){
+  running=false;
+ }
+
+}
+
+function drawPipes(){
+
+ pipes.forEach(p=>{
+
+  ctx.fillStyle="green";
+  ctx.fillRect(p.x,0,50,p.top);
+  ctx.fillRect(p.x,p.bottom,50,canvas.height);
+
+  if(running && !shop){
+   p.x-=2;
+  }
+
+  if(
+   !ghost &&
+   bird.x+15>p.x &&
+   bird.x-15<p.x+50 &&
+   (bird.y-15<p.top || bird.y+15>p.bottom)
+  ){
+   running=false;
+  }
+
+  if(p.x+50===bird.x){
+   score++;
+  }
+
+ });
+
+ pipes=pipes.filter(p=>p.x>-50);
+
+}
+
+function drawShop(){
+
+ ctx.fillStyle="black";
+ ctx.font="20px Arial";
+ ctx.fillText("SHOP (press S to exit)",70,80);
+
+ colors.forEach((c,i)=>{
+
+  let text=(i+1)+": "+c.name+" - "+c.price;
+
+  if(owned[c.name]){
+   text+=" (owned)";
+  }
+
+  ctx.fillText(text,80,130+i*40);
+
+ });
+
+}
+
+function loop(){
+
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ if(frame%90===0 && running && !shop){
+
+  let gap=140;
+  let top=Math.random()*300+50;
+
+  pipes.push({
+   x:canvas.width,
+   top:top,
+   bottom:top+gap
+  });
+
+ }
+
+ drawPipes();
+ updateBird();
+ drawBird();
+
+ ctx.fillStyle="black";
+ ctx.font="24px Arial";
+ ctx.fillText("Score: "+score,10,30);
+
+ if(ghost){
+  ctx.font="18px Arial";
+  ctx.fillText("GHOST MODE",250,30);
+ }
+
+ if(!running){
+
+  ctx.font="40px Arial";
+  ctx.fillText("Game Over",110,300);
+
+  ctx.font="20px Arial";
+  ctx.fillText("Press R to restart",120,340);
+
+ }
+
+ if(shop){
+  drawShop();
+ }
+
+ frame++;
+
+ requestAnimationFrame(loop);
+
+}
+
+loop();
+
+</script>
+
+</body>
+</html>
