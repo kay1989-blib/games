@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ultimate Shooter</title>
+  <style>
+    body { margin:0; overflow:hidden; background:black; }
+    canvas { display:block; margin:auto; border:2px solid white; }
+  </style>
+</head>
+<body>
+<canvas id="game" width="400" height="600"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Game States
+let gameState = 'start';
+let animationTime = 0;
+let introTime = 0;
+
+// Player
+let player = { x:180, y:550, width:40, height:20, speed:5 };
+
+// Game Variables
+let bullets=[], enemies=[], powerUps=[], score=0, coins=0;
+let lives=3, bulletCooldown=false, tripleShot=false;
+let enemyInterval=null;
+
+// Hats
+const hats=["🎩","🪖","👑"];
+let unlockedHats=[false,false,false];
+let selectedHat=null;
+
+// Controls
+let keys={};
+document.addEventListener("keydown", e=> keys[e.key]=true);
+document.addEventListener("keyup", e=> keys[e.key]=false);
+
+// Shoot bullets (FIXED: added width & height)
+function shoot(){
+  if(!bulletCooldown && gameState==='playing'){
+    if(tripleShot){
+      bullets.push({x:player.x+5,y:player.y,width:5,height:10});
+      bullets.push({x:player.x+18,y:player.y,width:5,height:10});
+      bullets.push({x:player.x+31,y:player.y,width:5,height:10});
+    } else {
+      bullets.push({x:player.x+18,y:player.y,width:5,height:10});
+    }
+    bulletCooldown=true;
+    setTimeout(()=>bulletCooldown=false,200);
+  }
+}
+document.addEventListener("keydown", e=>{ if(e.code==="Space") shoot(); });
+
+// Start game
+function startGame(){
+  bullets=[]; enemies=[]; powerUps=[];
+  score=0; lives=3; tripleShot=false;
+  player.speed=5;
+  selectedHat=null;
+  startEnemySpawn();
+}
+
+// Enemy spawn
+function startEnemySpawn(){
+  enemyInterval=setInterval(()=>{
+    if(gameState!=='playing') return;
+    enemies.push({x:Math.random()*360, y:0, size:20, speed:2+score*0.05});
+  },1000);
+}
+function stopEnemySpawn(){ clearInterval(enemyInterval); }
+
+// Power-up spawn
+function spawnPowerUp(x,y){
+  const types=["triple","life","speed"];
+  if(Math.random()<0.3){
+    let type=types[Math.floor(Math.random()*types.length)];
+    powerUps.push({x:x, y:y, size:15, type:type});
+  }
+}
+
+// Update game
+function updateGame(){
+  if(keys['ArrowLeft'] && player.x>0) player.x-=player.speed;
+  if(keys['ArrowRight'] && player.x<canvas.width-player.width) player.x+=player.speed;
+
+  // Move bullets
+  for(let i = bullets.length - 1; i >= 0; i--){
+    bullets[i].y -= 5;
+    if(bullets[i].y < 0) bullets.splice(i,1);
+  }
+
+  // Move enemies + collision (FIXED LOOP)
+  for(let ei = enemies.length - 1; ei >= 0; ei--){
+    let e = enemies[ei];
+    e.y += e.speed;
+
+    for(let bi = bullets.length - 1; bi >= 0; bi--){
+      let b = bullets[bi];
+
+      if(
+        b.x < e.x + e.size &&
+        b.x + b.width > e.x &&
+        b.y < e.y + e.size &&
+        b.y + b.height > e.y
+      ){
+        bullets.splice(bi,1);
+        enemies.splice(ei,1);
+        score++;
+        spawnPowerUp(e.x,e.y);
+        break;
+      }
+    }
+
+    if(e.y > canvas.height){
+      enemies.splice(ei,1);
+      coins += score;
+      score = 0;
+      lives--;
+      tripleShot = false;
+      player.speed = 5;
+    }
+  }
+
+  // Power-ups
+  for(let pi = powerUps.length - 1; pi >= 0; pi--){
+    let p = powerUps[pi];
+
+    if(
+      p.x < player.x + player.width &&
+      p.x + p.size > player.x &&
+      p.y < player.y + player.height &&
+      p.y + p.size > player.y
+    ){
+      if(p.type==='triple') tripleShot=true;
+      if(p.type==='life') lives++;
+      if(p.type==='speed') player.speed=8;
+      powerUps.splice(pi,1);
+    }
+
+    p.y += 2;
+    if(p.y > canvas.height) powerUps.splice(pi,1);
+  }
+
+  if(lives<=0){
+    coins += score;
+    score=0; lives=3;
+    tripleShot=false;
+    player.speed=5;
+    stopEnemySpawn();
+    gameState='start';
+  }
+}
+
+// Draw functions
+function drawStartScreen(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  animationTime+=0.05;
+
+  let scale=1+0.05*Math.sin(animationTime*3);
+  ctx.save();
+  ctx.translate(canvas.width/2,canvas.height/2);
+  ctx.scale(scale,scale);
+  ctx.fillStyle='green';
+  ctx.font='40px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('CLICK P TO PLAY',0,0);
+  ctx.restore();
+
+  ctx.fillStyle='yellow';
+  ctx.font='20px Arial';
+  ctx.fillText(`Coins: ${coins}`, canvas.width/2, canvas.height/2+80);
+  ctx.fillText('Press S for Shop', canvas.width/2, canvas.height/2+110);
+}
+
+function drawIntro(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  introTime+=0.02;
+
+  ctx.fillStyle='white';
+  ctx.font='30px Arial';
+  ctx.textAlign='center';
+  ctx.globalAlpha=Math.min(introTime,1);
+  ctx.fillText('Made by Aayden',canvas.width/2,canvas.height/2);
+  ctx.globalAlpha=1;
+
+  if(introTime>2){
+    gameState='playing';
+    startGame();
+  }
+}
+
+function drawGame(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle='white';
+  ctx.fillRect(player.x,player.y,player.width,player.height);
+
+  if(selectedHat!==null && unlockedHats[selectedHat]){
+    ctx.fillText(hats[selectedHat],player.x+12,player.y-5);
+  }
+
+  ctx.fillStyle='red';
+  bullets.forEach(b=>ctx.fillRect(b.x,b.y,b.width,b.height));
+
+  ctx.fillStyle='green';
+  enemies.forEach(e=>ctx.fillRect(e.x,e.y,e.size,e.size));
+
+  powerUps.forEach(p=>{
+    ctx.fillStyle=p.type==='triple'?'cyan':p.type==='life'?'pink':'yellow';
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+  });
+
+  ctx.fillStyle='white';
+  ctx.font='20px Arial';
+  ctx.fillText(`Score: ${score}`, 60,30);
+  ctx.fillText(`Lives: ${lives}`, 60,60);
+  ctx.fillText(`Coins: ${coins}`, 60,90);
+  ctx.fillText('Press B to go back', 60,120);
+}
+
+function drawShop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle='white';
+  ctx.font='25px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('SHOP - Press 1-3 to buy/select hats',canvas.width/2,50);
+
+  hats.forEach((hat,i)=>{
+    ctx.fillStyle=unlockedHats[i]?'green':'red';
+    ctx.fillText(`${i+1}: ${hat} ${unlockedHats[i]?'Unlocked':'5 Coins'}`,canvas.width/2,150+i*50);
+  });
+
+  ctx.fillText(`Coins: ${coins}`, canvas.width/2, 350);
+  ctx.fillText('Press B to go back', canvas.width/2, 400);
+}
+
+// Key controls
+document.addEventListener('keydown', e=>{
+  if(gameState==='shop'){
+    if(e.key>='1' && e.key<='3'){
+      let idx=Number(e.key)-1;
+      if(unlockedHats[idx]) selectedHat=idx;
+      else if(coins>=5){
+        coins-=5;
+        unlockedHats[idx]=true;
+        selectedHat=idx;
+      }
+    }
+    if(e.key.toLowerCase()==='b') gameState='start';
+  }
+
+  if(gameState==='playing' && e.key.toLowerCase()==='b'){
+    gameState='start';
+    stopEnemySpawn();
+  }
+
+  if(gameState==='start' && e.key.toLowerCase()==='s') gameState='shop';
+  if(gameState==='start' && e.key.toLowerCase()==='p'){
+    gameState='intro';
+    introTime=0;
+  }
+});
+
+// Main loop
+function gameLoop(){
+  requestAnimationFrame(gameLoop);
+
+  if(gameState==='start') drawStartScreen();
+  if(gameState==='intro') drawIntro();
+  if(gameState==='playing'){ updateGame(); drawGame(); }
+  if(gameState==='shop') drawShop();
+}
+gameLoop();
+</script>
+</body>
+</html>

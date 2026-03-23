@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Customizable Snake Game</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#111; color:white; font-family:sans-serif;}
+    #ui { position:absolute; top:10px; left:10px; }
+    button { padding:5px 10px; margin-right:5px; }
+    #settings { position:absolute; top:50px; left:10px; background:#222; padding:10px; display:none; border-radius:5px; }
+    label { display:block; margin:5px 0; }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <button onclick="plantSeed()">Plant Seed</button>
+  <button onclick="toggleSettings()">Settings</button>
+  <p>Coins: <span id="coins">0</span></p>
+</div>
+
+<div id="settings">
+  <label>Head Color: <input type="color" id="headColorPicker"></label>
+  <label>Body Color: <input type="color" id="bodyColorPicker"></label>
+  <button onclick="applyColors()">Apply Colors</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// --- Snake Setup ---
+let segmentSize = 20;
+let worm = [{x:200,y:200}]; // head + body
+let dir = {x:2,y:0};
+let berries = [];
+let seeds = [];
+let coins = 0;
+
+// --- Load Colors from localStorage or default ---
+let headColor = localStorage.getItem('snakeHeadColor') || "#00FF00";
+let bodyColor = localStorage.getItem('snakeBodyColor') || "#4CAF50";
+
+document.getElementById('headColorPicker').value = headColor;
+document.getElementById('bodyColorPicker').value = bodyColor;
+
+// --- Movement ---
+window.addEventListener("keydown", e=>{
+  const speed = 2;
+  switch(e.key.toLowerCase()){
+    case "arrowup": case "w": dir={x:0,y:-speed}; break;
+    case "arrowdown": case "s": dir={x:0,y:speed}; break;
+    case "arrowleft": case "a": dir={x:-speed,y:0}; break;
+    case "arrowright": case "d": dir={x:speed,y:0}; break;
+  }
+});
+
+// --- Plant Seed ---
+function plantSeed(){
+  let s = {x:Math.random()*(canvas.width-40)+20, y:Math.random()*(canvas.height-40)+20};
+  seeds.push(s);
+  setTimeout(()=>{
+    berries.push({x:s.x,y:s.y});
+    seeds = seeds.filter(x=>x!==s);
+  },5000);
+}
+
+// --- Settings ---
+function toggleSettings(){
+  const s = document.getElementById('settings');
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyColors(){
+  headColor = document.getElementById('headColorPicker').value;
+  bodyColor = document.getElementById('bodyColorPicker').value;
+  localStorage.setItem('snakeHeadColor', headColor);
+  localStorage.setItem('snakeBodyColor', bodyColor);
+}
+
+// --- Update Snake ---
+function update(){
+  let head = {...worm[0]};
+  head.x += dir.x;
+  head.y += dir.y;
+
+  // Keep inside canvas
+  if (head.x < segmentSize) head.x = segmentSize;
+  if (head.x > canvas.width - segmentSize) head.x = canvas.width - segmentSize;
+  if (head.y < segmentSize) head.y = segmentSize;
+  if (head.y > canvas.height - segmentSize) head.y = canvas.height - segmentSize;
+
+  // Body follows head
+  let newWorm = [head];
+  for(let i=1; i<worm.length; i++){
+    let prev = newWorm[i-1];
+    let curr = worm[i];
+    let dx = prev.x - curr.x;
+    let dy = prev.y - curr.y;
+    let dist = Math.hypot(dx,dy);
+    let angle = Math.atan2(dy,dx);
+    let targetDist = segmentSize*2;
+    if(dist>targetDist){
+      curr.x = prev.x - Math.cos(angle)*targetDist;
+      curr.y = prev.y - Math.sin(angle)*targetDist;
+    }
+    newWorm.push(curr);
+  }
+  worm = newWorm;
+
+  // Eat berries
+  berries = berries.filter(b=>{
+    let dx = b.x - head.x;
+    let dy = b.y - head.y;
+    if(Math.hypot(dx,dy) < segmentSize){
+      let tail = worm[worm.length-1];
+      worm.push({x:tail.x, y:tail.y});
+      return false;
+    }
+    return true;
+  });
+}
+
+// --- Draw ---
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Draw worm
+  worm.forEach((p,i)=>{
+    ctx.fillStyle = i===0 ? headColor : bodyColor;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,segmentSize,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Eyes on head
+  let h = worm[0];
+  ctx.fillStyle="white";
+  ctx.beginPath(); ctx.arc(h.x-5,h.y-5,3,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(h.x+5,h.y-5,3,0,Math.PI*2); ctx.fill();
+
+  // Draw berries
+  ctx.fillStyle="purple";
+  berries.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,segmentSize/1.5,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Draw seeds
+  ctx.fillStyle="brown";
+  seeds.forEach(s=>{
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,segmentSize/3,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+// --- Click body for coins ---
+canvas.addEventListener("click", e=>{
+  let rect = canvas.getBoundingClientRect();
+  let mx = e.clientX - rect.left;
+  let my = e.clientY - rect.top;
+
+  // skip head
+  for(let i=1; i<worm.length; i++){
+    let p = worm[i];
+    if(Math.hypot(mx-p.x,my-p.y)<segmentSize){
+      coins++;
+      document.getElementById("coins").innerText = coins;
+      worm.splice(i,1); // remove clicked segment
+      break;
+    }
+  }
+});
+
+// --- Game loop ---
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>
