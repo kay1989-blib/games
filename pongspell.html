@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spell Pong</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    h1 {
+      margin: 10px 0 5px;
+      font-size: 40px;
+    }
+
+    p {
+      margin: 0 0 15px;
+      color: #ccc;
+    }
+
+    canvas {
+      border: 3px solid white;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Spell Pong</h1>
+<p>Gemaakt door Aayden</p>
+
+<canvas id="game" width="900" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const paddleWidth = 12;
+const normalPaddleHeight = 100;
+const smallPaddleHeight = 55;
+
+let leftPaddleHeight = normalPaddleHeight;
+let rightPaddleHeight = normalPaddleHeight;
+
+const ballSize = 14;
+
+let leftY = canvas.height / 2 - normalPaddleHeight / 2;
+let rightY = canvas.height / 2 - normalPaddleHeight / 2;
+
+let leftScore = 0;
+let rightScore = 0;
+
+const WIN_SCORE = 10;
+const paddleSpeed = 7;
+
+let normalSpeed = 5;
+
+let ballX = canvas.width / 2;
+let ballY = canvas.height / 2;
+
+let ballSpeedX = normalSpeed * (Math.random() > 0.5 ? 1 : -1);
+let ballSpeedY = 4;
+
+const keys = {};
+
+let gameOver = false;
+
+// BOOSTS
+let leftBoost = false;
+let rightBoost = false;
+
+// SPECIAL BALLS
+let redBall = false;
+let purpleBall = false;
+
+// REVERSED CONTROLS
+let leftReverse = false;
+let rightReverse = false;
+
+document.addEventListener("keydown", (e) => {
+  keys[e.key] = true;
+
+  // Oranje boost links
+  if (e.key === "e" || e.key === "E") {
+    leftBoost = true;
+  }
+
+  // Oranje boost rechts
+  if (e.key === "ArrowRight") {
+    rightBoost = true;
+  }
+
+  // Rode bal
+  if (e.key === "]") {
+    redBall = true;
+    purpleBall = false;
+  }
+
+  // Paarse bal
+  if (e.key === "=") {
+    purpleBall = true;
+    redBall = false;
+  }
+
+  // Restart
+  if (gameOver && (e.key === "r" || e.key === "R")) {
+    restartGame();
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  keys[e.key] = false;
+});
+
+function makeLeftSmall() {
+  leftPaddleHeight = smallPaddleHeight;
+
+  setTimeout(() => {
+    leftPaddleHeight = normalPaddleHeight;
+  }, 6000);
+}
+
+function makeRightSmall() {
+  rightPaddleHeight = smallPaddleHeight;
+
+  setTimeout(() => {
+    rightPaddleHeight = normalPaddleHeight;
+  }, 6000);
+}
+
+function reverseLeftControls() {
+  leftReverse = true;
+
+  setTimeout(() => {
+    leftReverse = false;
+  }, 6000);
+}
+
+function reverseRightControls() {
+  rightReverse = true;
+
+  setTimeout(() => {
+    rightReverse = false;
+  }, 6000);
+}
+
+function update() {
+  if (gameOver) return;
+
+  // LINKS controls
+  if (!leftReverse) {
+    if (keys["w"] || keys["W"]) leftY -= paddleSpeed;
+    if (keys["s"] || keys["S"]) leftY += paddleSpeed;
+  } else {
+    if (keys["w"] || keys["W"]) leftY += paddleSpeed;
+    if (keys["s"] || keys["S"]) leftY -= paddleSpeed;
+  }
+
+  // RECHTS controls
+  if (!rightReverse) {
+    if (keys["ArrowUp"]) rightY -= paddleSpeed;
+    if (keys["ArrowDown"]) rightY += paddleSpeed;
+  } else {
+    if (keys["ArrowUp"]) rightY += paddleSpeed;
+    if (keys["ArrowDown"]) rightY -= paddleSpeed;
+  }
+
+  // Grenzen
+  leftY = Math.max(
+    0,
+    Math.min(canvas.height - leftPaddleHeight, leftY)
+  );
+
+  rightY = Math.max(
+    0,
+    Math.min(canvas.height - rightPaddleHeight, rightY)
+  );
+
+  // Bal beweging
+  ballX += ballSpeedX;
+  ballY += ballSpeedY;
+
+  // Muren
+  if (ballY <= 0 || ballY + ballSize >= canvas.height) {
+    ballSpeedY *= -1;
+  }
+
+  // LINKS botsing
+  if (
+    ballX <= paddleWidth &&
+    ballY + ballSize >= leftY &&
+    ballY <= leftY + leftPaddleHeight
+  ) {
+
+    // Rode bal effect
+    if (redBall) {
+      makeLeftSmall();
+      redBall = false;
+    }
+
+    // Paarse bal effect
+    if (purpleBall) {
+      reverseLeftControls();
+      purpleBall = false;
+    }
+
+    // Oranje boost
+    if (leftBoost) {
+      ballSpeedX = Math.abs(ballSpeedX) + 5;
+      leftBoost = false;
+    } else {
+      ballSpeedX = Math.abs(normalSpeed);
+    }
+
+    ballX = paddleWidth;
+  }
+
+  // RECHTS botsing
+  if (
+    ballX + ballSize >= canvas.width - paddleWidth &&
+    ballY + ballSize >= rightY &&
+    ballY <= rightY + rightPaddleHeight
+  ) {
+
+    // Rode bal effect
+    if (redBall) {
+      makeRightSmall();
+      redBall = false;
+    }
+
+    // Paarse bal effect
+    if (purpleBall) {
+      reverseRightControls();
+      purpleBall = false;
+    }
+
+    // Oranje boost
+    if (rightBoost) {
+      ballSpeedX = -(Math.abs(ballSpeedX) + 5);
+      rightBoost = false;
+    } else {
+      ballSpeedX = -normalSpeed;
+    }
+
+    ballX = canvas.width - paddleWidth - ballSize;
+  }
+
+  // Score
+  if (ballX < 0) {
+    rightScore++;
+    checkWinner();
+    resetBall();
+  }
+
+  if (ballX > canvas.width) {
+    leftScore++;
+    checkWinner();
+    resetBall();
+  }
+}
+
+function checkWinner() {
+  if (leftScore >= WIN_SCORE || rightScore >= WIN_SCORE) {
+    gameOver = true;
+  }
+}
+
+function resetBall() {
+  ballX = canvas.width / 2;
+  ballY = canvas.height / 2;
+
+  ballSpeedX = normalSpeed * (Math.random() > 0.5 ? 1 : -1);
+  ballSpeedY = 4;
+
+  leftBoost = false;
+  rightBoost = false;
+
+  redBall = false;
+  purpleBall = false;
+}
+
+function restartGame() {
+  leftScore = 0;
+  rightScore = 0;
+
+  leftPaddleHeight = normalPaddleHeight;
+  rightPaddleHeight = normalPaddleHeight;
+
+  leftReverse = false;
+  rightReverse = false;
+
+  gameOver = false;
+
+  resetBall();
+}
+
+function draw() {
+  // Achtergrond
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Middenlijn
+  ctx.setLineDash([10, 10]);
+  ctx.strokeStyle = "white";
+
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+
+  // Linker paddle
+  ctx.fillStyle = leftBoost ? "orange" : "white";
+
+  ctx.fillRect(
+    0,
+    leftY,
+    paddleWidth,
+    leftPaddleHeight
+  );
+
+  // Rechter paddle
+  ctx.fillStyle = rightBoost ? "orange" : "white";
+
+  ctx.fillRect(
+    canvas.width - paddleWidth,
+    rightY,
+    paddleWidth,
+    rightPaddleHeight
+  );
+
+  // Bal kleur
+  if (redBall) {
+    ctx.fillStyle = "red";
+  } else if (purpleBall) {
+    ctx.fillStyle = "purple";
+  } else {
+    ctx.fillStyle = "white";
+  }
+
+  ctx.fillRect(ballX, ballY, ballSize, ballSize);
+
+  // Score
+  ctx.fillStyle = "white";
+  ctx.font = "40px Arial";
+
+  ctx.fillText(leftScore, canvas.width / 4, 50);
+  ctx.fillText(rightScore, canvas.width * 3 / 4, 50);
+
+  // Win scherm
+  if (gameOver) {
+    ctx.font = "50px Arial";
+
+    let winner =
+      leftScore >= WIN_SCORE
+        ? "Links wint!"
+        : "Rechts wint!";
+
+    ctx.fillText(
+      winner,
+      canvas.width / 2 - 150,
+      canvas.height / 2
+    );
+
+    ctx.font = "25px Arial";
+
+    ctx.fillText(
+      "Druk op R om opnieuw te spelen",
+      canvas.width / 2 - 180,
+      canvas.height / 2 + 50
+    );
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>
