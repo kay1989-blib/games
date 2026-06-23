@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Element Maker</title>
+
+<style>
+body{
+    font-family:Arial;
+    background:#111;
+    color:white;
+    margin:0;
+    text-align:center;
+}
+
+#result{
+    font-size:22px;
+    padding:10px;
+    background:#000;
+    position:sticky;
+    top:0;
+}
+
+#selectInfo{
+    padding:8px;
+    color:#aaa;
+}
+
+#elements{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    padding:20px;
+    height:65vh;
+    overflow-y:auto;
+}
+
+.element{
+    padding:15px;
+    background:#333;
+    border-radius:10px;
+    cursor:pointer;
+    min-width:100px;
+}
+
+#popup{
+    display:none;
+    position:fixed;
+    top:0;left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.85);
+    align-items:center;
+    justify-content:center;
+}
+
+#box{
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+    width:300px;
+}
+
+input{
+    width:90%;
+    padding:8px;
+    margin:5px 0;
+}
+</style>
+</head>
+<body>
+
+<div id="result">Element Maker</div>
+<div id="selectInfo">First: none | Second: none</div>
+
+<div id="elements"></div>
+
+<div id="popup">
+    <div id="box">
+        <div id="msg">Create element</div>
+        <input id="nameInput" placeholder="Name (required)">
+        <input id="emojiInput" placeholder="Emoji (optional)">
+        <button onclick="create()">Create</button>
+        <button onclick="closePopup()">Cancel</button>
+    </div>
+</div>
+
+<script>
+
+let first = "";
+let second = "";
+let pendingKey = "";
+
+/* ⭐ SINGLE SOURCE OF TRUTH (IMPORTANT FIX) */
+let discovered = {
+    "Fire":"🔥",
+    "Water":"💧",
+    "Earth":"🌍",
+    "Wind":"💨"
+};
+
+let recipes = {
+    "Fire|Water":{name:"Steam", emoji:"☁️"},
+    "Water|Fire":{name:"Steam", emoji:"☁️"}
+};
+
+function render(){
+
+    const box = document.getElementById("elements");
+    box.innerHTML = "";
+
+    /* ALWAYS render from discovered ONLY */
+    Object.entries(discovered).forEach(([name,emoji])=>{
+
+        const div = document.createElement("div");
+        div.className = "element";
+
+        div.innerHTML = emoji + "<br>" + name;
+
+        div.onclick = () => pick(name);
+
+        box.appendChild(div);
+    });
+}
+
+function updateInfo(){
+    document.getElementById("selectInfo").innerText =
+    `First: ${first || "none"} | Second: ${second || "none"}`;
+}
+
+function pick(name){
+
+    if(!first){
+        first = name;
+        updateInfo();
+        return;
+    }
+
+    second = name;
+    updateInfo();
+
+    let key = first + "|" + second;
+    let key2 = second + "|" + first;
+
+    let result = recipes[key] || recipes[key2];
+
+    if(result){
+
+        /* ⭐ FIX: ALWAYS add to list BEFORE render */
+        addToList(result.name, result.emoji);
+
+        document.getElementById("result").innerText =
+        `${first} + ${second} = ${result.name}`;
+
+        reset();
+        render();
+        return;
+    }
+
+    pendingKey = key;
+    openPopup();
+}
+
+function addToList(name, emoji){
+
+    /* ⭐ GUARANTEE IT GOES INTO LIST */
+    discovered[name] = emoji;
+}
+
+function openPopup(){
+    document.getElementById("popup").style.display = "flex";
+    document.getElementById("nameInput").value = "";
+    document.getElementById("emojiInput").value = "";
+}
+
+function closePopup(){
+    document.getElementById("popup").style.display = "none";
+    reset();
+}
+
+function create(){
+
+    let name = document.getElementById("nameInput").value;
+    let emoji = document.getElementById("emojiInput").value || "⭐";
+
+    if(!name || name.trim() === ""){
+        document.getElementById("msg").innerText = "❌ Name required!";
+        return;
+    }
+
+    recipes[pendingKey] = {name, emoji};
+    recipes[pendingKey.split("|").reverse().join("|")] = {name, emoji};
+
+    /* ⭐ FIX: ALWAYS ADD BEFORE RENDER */
+    addToList(name, emoji);
+
+    document.getElementById("result").innerText =
+    "Created: " + name;
+
+    closePopup();
+    reset();
+    render();
+}
+
+function reset(){
+    first = "";
+    second = "";
+    pendingKey = "";
+    updateInfo();
+}
+
+render();
+
+</script>
+
+</body>
+</html><html</html>
