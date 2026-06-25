@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Word Typing Game</title>
+<style>
+    body{
+        font-family: Arial, sans-serif;
+        text-align:center;
+        margin-top:50px;
+    }
+
+    input, button{
+        padding:10px;
+        font-size:20px;
+    }
+
+    #targetWord{
+        font-size:40px;
+        margin:20px;
+        font-weight:bold;
+    }
+
+    #typed{
+        font-size:40px;
+        margin:20px;
+        min-height:50px;
+    }
+
+    .correct{
+        color:green;
+    }
+
+    .wrong{
+        color:red;
+    }
+
+    #result{
+        font-size:24px;
+        margin-top:20px;
+    }
+</style>
+</head>
+<body>
+
+<h1>Word Typing Game</h1>
+
+<div id="setup">
+    <input id="wordInput" placeholder="Enter a word">
+    <button onclick="startGame()">Submit</button>
+</div>
+
+<div id="countdown"></div>
+<div id="targetWord"></div>
+<div id="typed"></div>
+
+<input id="playerInput" style="display:none;" autocomplete="off">
+
+<div id="result"></div>
+
+<script>
+let word = "";
+let startTime = 0;
+
+function startGame() {
+    word = document.getElementById("wordInput").value;
+
+    if (!word) return;
+
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("countdown").innerHTML = "<h2>GO IN 1...</h2>";
+
+    setTimeout(() => {
+        document.getElementById("countdown").innerHTML = "";
+        document.getElementById("targetWord").textContent = word;
+
+        const input = document.getElementById("playerInput");
+        input.style.display = "inline-block";
+        input.focus();
+
+        startTime = Date.now();
+
+        input.addEventListener("input", updateTyping);
+    }, 1000);
+}
+
+function updateTyping() {
+    const input = document.getElementById("playerInput").value;
+    const typedDiv = document.getElementById("typed");
+
+    let html = "";
+
+    for (let i = 0; i < input.length; i++) {
+        if (input[i] === word[i]) {
+            html += `<span class="correct">${input[i]}</span>`;
+        } else {
+            html += `<span class="wrong">${input[i]}</span>`;
+        }
+    }
+
+    typedDiv.innerHTML = html;
+
+    if (input === word) {
+        const time = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        document.getElementById("result").innerHTML =
+            `✅ Complete! Time: ${time} seconds`;
+
+        document.getElementById("playerInput").disabled = true;
+    }
+}
+</script>
+
+</body>
+</html>
